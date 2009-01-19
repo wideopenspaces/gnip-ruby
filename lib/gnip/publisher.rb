@@ -12,6 +12,10 @@ class Gnip::Publisher
   def uri
     "/#{@scope}/publishers/#{@name}"
   end
+  
+  def add_rule_types(ruletypes = [])
+    @supported_rule_types | ruletypes
+  end
 
   def to_xml()
     return XmlSimple.xml_out(self.to_hash, {'RootName' => nil, 'XmlDeclaration' => Gnip.header_xml})

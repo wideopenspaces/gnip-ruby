@@ -57,7 +57,8 @@ class Gnip::Connection < Gnip::Base
         activities = []
         activities = Gnip::Activity.list_from_xml(activities_xml) if response.code == '200'
         return [response, activities]
-    end
+    end  
+    alias_method :get_publisher_activities, :publisher_activities_stream
 
     # Gets the current activities for a filter
     # Time is the time object. If nil, then the server returns the current bucket
@@ -79,6 +80,8 @@ class Gnip::Connection < Gnip::Base
         activities = Gnip::Activity.list_from_xml(activities_xml) if response.code == '200'
         return [response, activities]
     end
+    alias_method :get_filter_activities, :filter_activities_stream
+    
 
     # Gets the current notifications for a publisher
     # Time is the time object. If nil, then the server returns the current bucket
@@ -100,7 +103,8 @@ class Gnip::Connection < Gnip::Base
         activities = Gnip::Activity.list_from_xml(activities_xml) if response.code == '200'
         return [response, activities]
     end
-
+    alias_method :get_publisher_notifications, :publisher_notifications_stream
+    
     # Gets the current notifications for a filter
     # Time is the time object. If nil, then the server returns the current bucket
     def filter_notifications_stream_xml(publisher, filter, time = nil)
@@ -121,6 +125,7 @@ class Gnip::Connection < Gnip::Base
         activities = Gnip::Activity.list_from_xml(activities_xml) if response.code == '200'
         return [response, activities]
     end
+    alias_method :get_filter_notifications, :filter_notifications_stream
 
     def get_filter(publisher, filter_name)
         logger.info("Getting filter #{filter_name}")
@@ -178,20 +183,50 @@ class Gnip::Connection < Gnip::Base
     end
 
     def remove_filter(publisher, filter)
-        logger.info("Creating #{filter.class} with name #{filter.name}")
+        logger.info("Deleting #{filter.class} with name #{filter.name}")
         return delete("#{publisher.uri}/#{filter.uri}/#{filter.name}.xml")
     end
+    alias_method :delete_filter, :remove_filter
 
+    #### RULES
+
+    # Gets a rule given an existing valid publisher/filter combination. 
+	  # Used mostly for verification that the rule does exist.
+    def get_rule(publisher, filter, rule)
+      logger.info("Finding rule matching (#{rule.type}:#{rule.value}) on #{filter.class} for publisher #{publisher.name}")
+      return get("#{publisher.uri}/filters/#{filter.name}/rules.xml?type=#{CGI.escape(rule.type)}&value=#{CGI.escape(rule.value)}")
+    end
+    
+    # Verifies a rule exists given an existing valid publisher/filter combination. Used
+    def rule_exists?(publisher, filter, rule)
+      true if get_rule(publisher, filter, rule)
+    end
+    
+    # Add a single rule to a filter, given valid publisher and filter.
     def add_rule(publisher, filter, rule)
         logger.info("Adding rule #{rule.value} to filter #{filter.name}")
         return post("#{publisher.uri}/filters/#{filter.name}/rules.xml", rule.to_xml)
     end
+    
+    # Add a Batch of Rules.
+    def add_batch_rules(publisher, filter, ruleset=[])
+      unless ruleset.is_a?(Array)
+        add_rule(publisher, filter, ruleset)
+      else
+        logger.info("Bulk adding rules to filter named #{self.name} for publisher #{publisher.name}")
+        return post("#{publisher.uri}/filters/#{filter.name}/rules.xml", rules_to_xml(ruleset))
+      end
+    end
 
+    # Deletes a rule given an existing valid publisher/filter combination.
     def remove_rule(publisher, filter, rule)
         logger.info("Removing rule #{rule.value} from filter #{filter.name}")
         return delete("#{publisher.uri}/filters/#{filter.name}/rules?type=#{CGI.escape(rule.type)}&value=#{CGI.escape(rule.value)}") if rule
-    end
-
+    end      
+    alias_method :delete_rule, :remove_rule
+    
+    #### UTILITY METHODS
+    
     def head(path)
         logger.debug('Doing HEAD')
         return http.get(path, headers)
@@ -273,5 +308,9 @@ class Gnip::Connection < Gnip::Base
         return [] if publishers_xml.nil?
         publishers_list = XmlSimple.xml_in(publishers_xml)
         return (publishers_list.empty? ? [] : publishers_list['publisher'].collect { |publisher_hash| Gnip::Publisher.from_hash(publisher_hash)})
+    end
+    
+    def rules_to_xml(ruleset)
+      return XmlSimple.xml_out(ruleset.collect { |rule| rule.to_hash }, {'AnonymousTag' => 'rule', 'RootName' => 'rules', 'XmlDeclaration' => Gnip.header_xml})
     end
 end
