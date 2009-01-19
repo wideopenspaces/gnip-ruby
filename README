@@ -48,103 +48,334 @@ call:
 and remember to re-initialize any Gnip::Connection objects with this Gnip::Config
 instance.
 
-= Consuming data from Gnip = 
+==== Subscriber Actions ====
 
-Example 1: Retrieve all recent activities for a publisher
+=== Notification vs. Activity ===
 
-As a consumer one thing you might be interested in immediately is to
-grab recent activity at a particular publisher.  To do this you must
-create a connection to Gnip using your user name and password.  Once
-that connection is established you can get the publisher and request
-it's activities stream.  
+As a subscriber you can retrieve notification data or activity data. The main 
+difference between these two types of data buckets are:
 
-    require 'rubygems'
-    require 'gnip' 
-
-    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
-
-    _,digg = gnip.get_publisher('digg')
-    activities = gnip.publisher_activities_stream(digg)
-    puts "Received #{activities != nil ? activities.size : 0} activities"
-
-Example 2: Retrieve all activities for a publisher around a specific time
-
-Some times you will want to get activity information from before now.
-Doing this look much like getting the recent activity, except that you
-past a time when getting the activity stream.  This will return the
-activity stream as it existed around that time.  The results will be
-include some activities before and after the time you specify.
-
-    require 'rubygems'
-    require 'gnip' 
-
-    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
-
-    _,digg = gnip.get_publisher('digg')
-    activities = gnip.publisher_activities_stream(digg, Time.now - 3600)  # 1 hour ago
-    puts "Received #{activities != nil ? activities.size ? 0} activities"
-
-Example 3: Create an activity stream that includes only activities done by users you care about
-
-If you would like to filter a set of publishers by the user that
-performed the activity you may create a filter to do so.  Once
-created a filter's activity stream is retrieved much like a
-publishers.  Activity that has already occured will not be included in
-a filter.  Therefore any new filter will be empty until some
-new matching activity has occured.
-
-    require 'rubygems'
-    require 'gnip' 
-
-    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
-
-    digg = Gnip::Publisher.new('digg')
-    my_filter = Gnip::Filter.new('my-filter')
-    my_filter.add_a_rule(Gnip::Rule.new('actor', 'Burento'))
-
-    gnip.create_filter(digg, my_filter)
+*** Notifications contain a reduced meta-data subset of attributes for an activity
+*** Activities contain full data, including the raw payload. There are some 
+    restrictions on activity data. You can only request unfiltered activities 
+    on publishers that you own (have authorization access to). You can create 
+    filters on any publisher and request activity data.
     
-    _,publisher,activities = gnip.filter_activities_stream(digg, my_filter)
-    puts "Received #{activities != nil ? activities.size : 0} activities"
-   
-Note, a Gnip Filter only collects activities that match the Filter's rules.  
-As such, the "activities" value returned from teh filter_activities_stream
-may be empty if the rules haven't matched an activity for that Publisher.
 
-Example 4: Delete a filter
+=== Example 1: Retrieve notifications from a publisher ===
 
-If you decide you no longer need a filter you have created in the
-past you can remove it.
+As a consumer one thing you might be interested in immediately is
+grabbing data from a publisher. To do this you must create a connection to Gnip 
+using your username and password.  Once the connection is established you can 
+get the publisher and request the stream. These examples uses the publisher 
+"gnip-test-publisher".
 
-    require 'rubygems'
-    require 'gnip' 
-
-    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
-    digg = Gnip::Publisher.new('digg')
-    _,my_filter = gnip.get_filter(digg, "my-filter")
-
-    gnip.remove_filter(digg, my_filter)
-
-= Publishing data to Gnip = 
-
-Example 1: Create a publisher and publish some activities
-
-If you are interested in publishing activity you will need to create a
-publisher.  Once the publisher resource is created, activities can be
-published in it's activity stream.
+*** Notification data stream request ***
 
     require 'rubygems'
     require 'gnip' 
 
     gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    notifications = gnip.get_publisher_notifications(pub)
+    puts notifications
 
-    my_publisher = Gnip::Publisher.new('myservice')
+You can also view the current notifications bucket via web on the Gnip site:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/notification/current.xml
 
-    gnip.create(my_publisher)
 
-    activity = Gnip::Activity.new('joe', 'post', Time.now, 'http://mydomain.com/joe/my-new-blog-post')
+*** Notification data stream request with optional date param ***
 
-    gnip.publish(my_publisher, activity)
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    notifications = gnip.get_publisher_notifications(pub, Time.now-120)
+    puts notifications
+
+You can see the running list of notification buckets on the Gnip site:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/notification/
+
+=== Example 2: Filter notifications or activities by a set of users ===
+
+You can create a filter to stream activity data for the users you care about. 
+Posts from the users that have already occurred will not be included in a 
+filter. Therefore any new filter you create will be empty until the users you 
+specify perform an action (make a tweet, digg a story, create a bookmark in 
+delicious, etc.). 
+
+You can only retrieve activity data (full data) from publishers that you don't own 
+by creating a filter.
+
+The test actor for "gnip-test-publisher" is "joeblow". To test your filter, be sure 
+"joeblow" appears in your rule set.
+
+The following examples illustrate creating filters for both notification and activity 
+data. Additionally, the two examples show how to use/not use the post URL parameter.
+
+*** Notification Filter without POST URL ***
+
+Note that the full data (second parameter) of the filter object must be set to 
+false. This example does not include a POST Url, meaning you'll have to poll 
+Gnip for the results when you need them. The following snippet creates (and 
+retrieves) a notification filter called "myNotificationFilter" on the publisher 
+gnip-test-publisher.
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+                   
+    rules = [Gnip::Rule.new("actor","you"), Gnip::Rule.new("actor","me"), Gnip::Rule.new("actor","mary")]
+            
+    filter = Gnip::Filter.new("myNotificationFilter", false, rules);
+    filter.add_rule("actor", "joeblow")
+    filter.remove_rule("actor", "me")
+    
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    
+    gnip.create_filter(pub, filter);
+    puts gnip.get_filter_notifications(pub, filter)
+     
+
+You can view your filters by running:
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    _,filter = gnip.get_filter(pub, "myNotificationFilter")
+    puts filter
+    
+Your actors list should be (not necessarily in this order): you, mary, joeblow
+
+You can also see your filters list for each publisher by going to the Gnip site:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/filters
+
+You can view notification buckets on the Gnip site by going to:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/filters/myNotificationFilter/notification
+
+*** Activity Filter ***
+
+Note that the full data (second parameter) of the filter object must be set to 
+true to view activity data. The following snippet creates (and gets) an activity 
+filter called "myActivityFilter" on the publisher gnip-test-publisher. 
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+                   
+    rules = [Gnip::Rule.new("actor","you"), Gnip::Rule.new("actor","me"), Gnip::Rule.new("actor","mary")]
+            
+    new_filter = Gnip::Filter.new("myNotificationFilter", true, rules);
+    new_filter.add_rule("actor", "joeblow")
+    new_filter.remove_rule("actor", "me")
+    
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    
+    _, filter = gnip.create_filter(pub, new_filter);
+    puts gnip.get_activity_notifications(pub, filter)
+    
+	
+You can view your filters by running:
+	_,pub = gnip.get_publisher("gnip-test-publisher")
+  _,filter = gnip.get_filter(pub, "myActivityFilter")
+  puts filter
+  
+You can see your filters by going to the Gnip site:
+	https://prod.gnipcentral.com/publishers/gnip-test-publisher/filters
+Your actors list should be (not necessarily in this order): you, mary, joeblow
+
+Once data is available, you can see it here:
+	https://review.gnipcentral.com/publishers/gnip-test-publisher/activity
+
+=== Example 3: Add rules to an existing filter ===
+
+You can add rules later to an existing filter. The following code snippet adds 
+two new rules to the filter we created above, myNotificationFilter:
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    _, filter = gnip.get_filter(pub, "myNotificationFilter")
+    
+    filter.add_rule('actor', 'sam')
+    filter.add_rule('actor', 'judy')
+    
+    gnip.update_filter(pub, filter)
+
+    _, updated_filter = gnip.get_filter(pub, "myNotificationFilter")
+    puts updated_filter
+
+You should see the following actors: mary, you, sam, joeblow, judy
+
+=== Example 4: Delete a filter ===
+
+Filters can be easily deleted. The following code sample deletes the filter 
+that was created above:
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    _,filter = gnip.get_filter(pub, "myNotificationFilter")
+    
+    gnip.delete_filter(pub, filter)
+
+
+=== Example 5: Retrieve activities from a publisher ===
+
+*** Activity Data Stream Request ***
+
+NOTE: You must create a filter (see Example 2 above) before you can view 
+activities for a publisher that you do not own.
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+
+    activities = gnip.get_publisher_activities(pub)
+    
+You can also view the current activity bucket via web on the Gnip site:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/activity/current.xml
+
+*** Activity Data Stream Request with Date Param ***
+
+NOTE: You must create a filter (see Example 3 below) before you can view 
+activities for a publisher that you do not own.
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+
+    activities = gnip.get_publisher_activities(pub, Time.now-120)
+
+You can see the running list of activity buckets on the Gnip site:
+    https://prod.gnipcentral.com/publishers/gnip-test-publisher/activity/
+
+=== Example 6: Add rules in large batches ===
+
+Adding rules in large batches is the fastest way to augment an existing Filter, and 
+for Filters that already contain large rule sets, batch additions must be used to 
+change the Filter.  Here's an example of a batch add:
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    _,pub = gnip.get_publisher("gnip-test-publisher")
+    _, filter = gnip.get_filter(pub, "myNotificationFilter")
+    
+    rules = [ Gnip::Rule.new("actor", "bob"),
+              Gnip::Rule.new("actor", "sally"),
+              Gnip::Rule.new("actor", "joe") ]
+
+    
+    gnip.add_batch_rules(pub, filter, rules)
+
+If the server receives the message successfully, you should receive an HTTP response code 
+of 200 and a message of "Success".  Note, Gnip processes rule addition asynchronously, so 
+there may be a delay between completion of the request and Gnip's finishing adding rules
+to the Filter.  
+	
+You can test if a rule already exists by calling:
+    
+    rule = Gnip::Rule.new("actor","bob")
+    puts "yay, the rule exists!" if gnip.rule_exists?(pub, filter, rule)
+
+
+If you like, you can delete the rule:
+     
+     gnip.delete_rule(pub, filter, rule)
+	
+
+==== Publisher Actions ====
+
+In order to utilize the publisher API, you must first create a publisher. The 
+publisher name should be descriptive to you, especially if you want it to be 
+publicly available. For instance, the publisher name for Digg is "digg". For 
+now, publishers cannot be deleted once they are created, so be mindful when 
+naming and testing your publishers.
+
+Publishers must have one or more rule types specified so that filters can be 
+created based on the rule types. The following rule types are supported by 
+Gnip:
+	Actor 
+	To
+	Regarding
+	Source
+	Tag
+	
+=== Example 1: Create a publisher
+	
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    name = "myPublisher"
+    supported_rule_types = [Gnip::RuleType.new('actor'),
+                            Gnip::RuleType.new('tag')]
+                            
+    publisher = Gnip::Publisher.new(name, supported_rule_types);
+
+    gnip.create_publisher(publisher)
+	
+
+=== Example 2: Updating a publisher
+
+The following example takes an existing publisher and updates it with a new set 
+of supported rule types.
+	
+	  require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+    name = "myPublisher"
+    supported_rule_types = [Gnip::RuleType.new('actor'),
+                            Gnip::RuleType.new('tag')]
+                            
+
+    _,pub = gnip.get_publisher("myPublisher")
+
+    rule_types = [Gnip::RuleType.new('to')]
+    pub.add_rule_types(rule_types)
+    
+    gnip.update_publisher(pub)
+	
+
+=== Example 3: Publishing activities
+
+Here is how you can publish activities to the activity stream:
+
+    require 'rubygems'
+    require 'gnip' 
+
+    gnip = Gnip::Connection.new(Gnip::Config.new("me@mydomain.com", "my-password"))
+	
+	  # (actor, action, at = Time.now, url = nil, tos = [], regardingURL = nil, source = nil, tags = [], payload = nil)
+    activity = Gnip::Activity.new(
+      'sally',                          # actor
+      'upload',                         # action
+      '2008-07-02T11:16:16+00:00',      # at
+      'http://example.com',             # url,
+      ['bob'],                          # tos
+      'blog_post',                      # regardingURL
+      'web',                            # source
+      'trains,planes,automobiles',      # tags
+      nil                               # payload
+    )
+      
+    _, pub = gnip.get_publisher("exampletest")
+    gnip.publish(pub, [activity])
+
 
 = Contributing =
  
