@@ -1,9 +1,9 @@
 class Gnip::Activity
 
-  attr_reader :actor, :at, :url, :action, :tos, :regardingURL, :source, :tags, :payload
+  attr_reader :actors, :at, :url, :action, :tos, :regardingURLs, :destinationURLs, :sources, :tags, :keywords, :places, :payload
 
-  def initialize(actor, action, at = Time.now, url = nil, tos = [], regardingURL = nil, source = nil, tags = [], payload = nil)
-    @actor = actor
+  def initialize(actors, action, at = Time.now, url = nil, tos = [], regardingURLs = [], sources = [], tags = [], payload = nil, destinationURLs = [], keywords = [], places = [])
+    @actors = actors
     @action = action
     if (at.class == Time)
       @at = at.xmlschema
@@ -12,10 +12,23 @@ class Gnip::Activity
     end
     @url = url
     @tos = tos
-    @regardingURL = regardingURL
-    @source = source
+    @regardingURLs = regardingURLs
+    @sources = sources
     @tags = tags
     @payload = payload
+    @destinationURLs = destinationURLs
+    @keywords = keywords
+    @places = places
+  end
+  
+  def actor 
+    unless @actors.empty?
+     @actors.first.is_a?(Hash) ? @actors.first["content"] : @actors.first
+    end
+  end
+  
+  def to(idx)
+    @tos[idx].is_a?(Hash) ? @tos[idx]["content"] : @tos[idx]
   end
 
   def to_xml()
@@ -27,13 +40,16 @@ class Gnip::Activity
     result = {}
     result['at'] = [@at]
     result['action'] = [@action]
-    result['actor'] = [@actor] if @actor
+    result['actor'] = @actors if @actors
     result['url'] = [@url] if @url
     result['to'] = @tos if @tos
-    result['regardingURL'] = [@regardingURL] if @regardingURL
-    result['source'] = [@source] if @source
+    result['regardingURL'] = @regardingURLs if @regardingURLs
+    result['source'] = @sources if @sources
     result['tag'] = @tags if @tags
     result['payload'] = @payload.to_hash if @payload
+    result['destinationURL'] = @destinationURLs if @destinationURLs
+    result['keyword'] = @keywords if @keywords
+    result['place'] = @places if @places
 
     {'activity' => result }
   end
@@ -47,8 +63,9 @@ class Gnip::Activity
   def self.from_hash(hash)
     return if hash.nil? || hash.empty?    
     payload = Gnip::Payload.from_hash(hash['payload'].first) if hash['payload']
-    Gnip::Activity.new(first(hash['actor']), first(hash['action']), first(hash['at']),
-             first(hash['url']), hash['to'], first(hash['regardingURL']), first(hash['source']), hash['tag'], payload)
+    Gnip::Activity.new(hash['actor'], first(hash['action']), first(hash['at']),
+             first(hash['url']), hash['to'], hash['regardingURL'], hash['source'], hash['tag'], payload,
+             hash['destinationURL'], hash['keyword'], hash['place'])
   end
 
   def self.from_xml(document)
@@ -79,17 +96,63 @@ class Gnip::Activity
     def initialize(action, at = Time.now)
       @action = action
       @at = at
+      @actors = []
+      @places = []
       @tags = []
+      @keywords = []
+      @destinationURLs = []
+      @regardingURLs = []
+      @sources = []
       @tos = []
     end
 
-    def actor(actor)
-      @actor = actor
+    def actor(actor, uid=nil, metaURL=nil)
+      actor = { "content" => actor }
+      actor.merge!("uid" => uid) if uid
+      actor.merge!("metaURL" => metaURL) if metaURL
+      @actors.push(actor)      
+      self
+    end
+    
+    def actors(actors = [])
+      @actors = actors
       self
     end
 
+    def activityID(activityID)
+      @activityID = activityID
+      self
+    end
+    
     def url(url)
       @url = url
+      self
+    end
+    
+    def place(point=nil, elev=nil, floor=nil, type_tag=nil, name=nil, relationship_tag=nil)
+      place = {}
+      place.merge!("point" => [point])  if point
+      place.merge!("elev" => [elev])    if elev
+      place.merge!("floor" => [floor])  if floor
+      place.merge!("featuretypetag" => [type_tag])  if type_tag
+      place.merge!("featurename" => [name])         if name
+      place.merge!("relationshiptag" => [relationship_tag]) if relationship_tag
+      @places.push(place)
+      self
+    end
+    
+    def places(places = [])
+      @places = places
+      self
+    end
+
+    def keywords(keywords = [])
+      @keywords = keywords
+      self
+    end
+
+    def keyword(keyword)
+      @keywords.push(keyword)
       self
     end
 
@@ -98,7 +161,9 @@ class Gnip::Activity
       self
     end
 
-    def to(to)
+    def to(to, metaURL=nil)
+      to = {"content" => to}
+      to.merge!("metaURL" => metaURL) if metaURL
       @tos.push(to)
       self
     end
@@ -112,14 +177,38 @@ class Gnip::Activity
       @tags.push(tag)
       self
     end
-
-    def regardingURL(regardingURL)
-      @regardingURL = regardingURL
+    
+    def destinationURL(destinationURL, metaURL=nil)
+      destinationURL = { "content" => destinationURL }
+      destinationURL.merge!( "metaURL" => metaURL ) if metaURL
+      @destinationURLs.push(destinationURL)
+      self
+    end
+    
+    def destinationURLs(destinationURLs = [])
+      @destinationURLs = destinationURLs
       self
     end
 
+    def regardingURL(regardingURL, metaURL=nil)
+      regardingURL = { "content" => regardingURL }
+      regardingURL.merge!( "metaURL" => metaURL ) if metaURL     
+      @regardingURLs.push(regardingURL)
+      self
+    end
+    
+    def regardingURLs(regardingURLs = [])
+      @regardingURLs = regardingURLs
+      self
+    end
+
+    def sources(sources = [])
+      @sources = sources
+      self
+    end
+    
     def source(source)
-      @source = source
+      @sources.push(source)
       self
     end
 
@@ -129,7 +218,7 @@ class Gnip::Activity
     end
 
     def build
-      Gnip::Activity.new(@actor, @action, @at, @url, @tos, @regardingURL, @source, @tags, @payload)
+      Gnip::Activity.new(@actors, @action, @at, @url, @tos, @regardingURL, @sources, @tags, @payload, @destinationURLs, @keywords, @places)
     end
 
   end

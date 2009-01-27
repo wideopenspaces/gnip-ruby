@@ -1,6 +1,6 @@
 class Gnip::Payload
 
-    attr_reader :body, :raw_value
+    attr_reader :body, :raw_value, :title, :mediaURLs
 
     def initialize(raw, body = nil, title = nil, mediaURLs = [])
         @raw_value = Gnip::Payload.encode(raw)
@@ -18,6 +18,7 @@ class Gnip::Payload
         result = {}
         result['body'] = [@body]
         result['raw'] = [@raw_value]  if @raw_value
+        result['mediaURL'] = @mediaURLs if @mediaURLs
         result
     end
 
@@ -32,9 +33,11 @@ class Gnip::Payload
 
     def self.from_hash(hash)
         return if hash.nil?  || hash.empty?
+        title = hash['title'].first if hash['title']
         body = hash['body'].first if hash['body']
         raw = decode(hash['raw'].first) if hash['raw'] 
-        Gnip::Payload.new(raw, body)
+        mediaURLs = hash['mediaURL'] if hash['mediaURL']
+        Gnip::Payload.new(raw, body, title, mediaURLs)
     end
 
     def self.from_xml(document)
@@ -64,7 +67,14 @@ class Gnip::Payload
             self
         end
 
-        def mediaURL(mediaURL)
+        def mediaURL(mediaURL, height=nil, width=nil, duration=nil, mimeType=nil, type=nil)
+            mediaURL = { "content" => mediaURL }
+            mediaURL.merge!("height"    => height)    if height
+            mediaURL.merge!("width"     => width)     if width
+            mediaURL.merge!("duration"  => duration)  if duration
+            mediaURL.merge!("mimeType"  => mimeType)  if mimeType
+            mediaURL.merge!("type"      => type)      if type
+            
             @mediaURLs.push(mediaURL)
             self
         end

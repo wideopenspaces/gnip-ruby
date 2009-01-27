@@ -107,7 +107,7 @@ XML
     document.elements["activity/at"].text.should == activity.at
     document.elements["activity/action"].text.should == activity.action
     document.elements["activity/actor"].text.should == activity.actor
-    document.elements.each("activity/to") { |element| element.text.should == activity.tos[0] }
+    document.elements.each("activity/to") { |element| element.text.should == activity.to(0) }
   end
 
   it "should marshall to xml correctly with payload" do
@@ -119,7 +119,7 @@ XML
     document.elements["activity/at"].text.should == activity.at
     document.elements["activity/action"].text.should == activity.action
     document.elements["activity/actor"].text.should == activity.actor
-    document.elements.each("activity/to") { |element| element.text.should == activity.tos[0] }
+    document.elements.each("activity/to") { |element| element.text.should == activity.to(0) }
     document.elements["activity/payload/body"].text.should == activity.payload.body
     document.elements["activity/payload/raw"].text.should == activity.payload.raw_value
 
@@ -146,7 +146,7 @@ XML
     activity.at.should == now.xmlschema
     activity.action.should == 'upload'
     activity.actor.should == 'bob'
-    activity.tos[0].should == 'to'
+    activity.to(0).should == 'to'
     activity.payload.should be_nil
   end
 
@@ -158,10 +158,10 @@ XML
 
     activity.at.should == '2007-05-23T00:53:11Z'
     activity.action.should == 'added_friend'
-    activity.actor.should == 'joe'
-    activity.tos[0].should == 'jane'
-    activity.regardingURL.should == 'def456'
-    activity.source.should == 'web'
+    activity.actors.should == ['joe']
+    activity.to(0).should == 'jane'
+    activity.regardingURLs.should == ['def456']
+    activity.sources.should == ['web']
     activity.tags[0].should == 'dogs'
     activity.tags[1].should == 'cats'
     activity.payload.should be_nil
