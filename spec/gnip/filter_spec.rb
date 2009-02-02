@@ -19,17 +19,17 @@ describe Gnip::Filter do
   Expected XML:
   <?xml version="1.0" encoding="UTF-8"?>
   <filter name="url-safe-name" fullData="true">
-    <rule value="joe" type="actor" />
-    <rule value="jack" type="actor" />
+    <rule type="actor">joe</rule>
+    <rule type="actor">jack</rule>
   </filter>
 =end
     filter.to_xml.should include("<filter")
     filter.to_xml.should include("name=\"url-safe-name\"")
     filter.to_xml.should include("fullData=\"true\"")
     filter.to_xml.should include("<rule ")
-    filter.to_xml.should include("value=\"joe\"")
+    filter.to_xml.should include("joe</rule")
     filter.to_xml.should include("type=\"actor\"")
-    filter.to_xml.should include("value=\"jack\"")
+    filter.to_xml.should include("jack</rule")
     filter.to_xml.should include("type=\"actor\"")
     filter.to_xml.should include("</filter>")
   end
@@ -45,17 +45,17 @@ describe Gnip::Filter do
   <?xml version="1.0" encoding="UTF-8"?>
   <filter name="url-safe-name" fullData="true">
     <postUrl>http://example.com</postUrl>
-    <rule value="joe" type="actor" />
-    <rule value="jack" type="actor" />
+    <rule type="actor">joe</rule>
+    <rule type="actor">jack</rule>
   </filter>
 =end
     filter.to_xml.should include("<filter")
     filter.to_xml.should include("name=\"url-safe-name\"")
     filter.to_xml.should include("fullData=\"true\"")
     filter.to_xml.should include("<postUrl>http://example.com</postUrl>")
-    filter.to_xml.should include("value=\"joe\"")
+    filter.to_xml.should include("joe</rule")
     filter.to_xml.should include("type=\"actor\"")
-    filter.to_xml.should include("value=\"jack\"")
+    filter.to_xml.should include("jack</rule")
     filter.to_xml.should include("type=\"actor\"")
     filter.to_xml.should include("</filter>")
   end
@@ -64,8 +64,8 @@ describe Gnip::Filter do
     filter_xml = <<HEREDOC
   <?xml version="1.0" encoding="UTF-8"?>
   <filter name="url-safe-name" fullData="true">
-    <rule value="joe" type="actor" />
-    <rule value="jack" type="actor" />
+    <rule type="actor">joe</rule>
+    <rule type="actor">jack</rule>
   </filter>
 HEREDOC
 
@@ -98,8 +98,8 @@ HEREDOC
   <?xml version="1.0" encoding="UTF-8"?>
   <filter name="url-safe-name" fullData="false">
     <postUrl>http://example.com</postUrl>
-    <rule type="actor" value="joe" />
-    <rule type="actor" value="jack" />
+    <rule type="actor">joe</rule>
+    <rule type="actor">jack</rule>
   </filter>
 HEREDOC
 

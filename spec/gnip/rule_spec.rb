@@ -7,17 +7,17 @@ describe Gnip::Rule do
 =begin
   Expected XML
 <?xml version="1.0" encoding="UTF-8"?>
-<rule type="actor" value="jud" />
+<rule type="actor">jud</rule>
 =end
     rule.to_xml.should include("<rule")
     rule.to_xml.should include("type=\"actor\"")
-    rule.to_xml.should include("value=\"jud\"")  
+    rule.to_xml.should include(">jud</rule")  
   end
 
    it 'should unmarshal from xml correctly' do
     rule_xml =  <<HEREDOC
 <?xml version="1.0" encoding="UTF-8"?>
-<rule type="actor" value="jud" />
+<rule type="actor">jud</rule>
 HEREDOC
     rule = Gnip::Rule.from_xml(rule_xml)
     rule.type.should == 'actor'
