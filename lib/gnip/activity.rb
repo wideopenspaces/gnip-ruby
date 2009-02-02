@@ -136,14 +136,7 @@ class Gnip::Activity
       self
     end
     
-    def place(point=nil, elev=nil, floor=nil, type_tag=nil, name=nil, relationship_tag=nil)
-      place = {}
-      place.merge!("point" => [point])  if point
-      place.merge!("elev" => [elev])    if elev
-      place.merge!("floor" => [floor])  if floor
-      place.merge!("featuretypetag" => [type_tag])  if type_tag
-      place.merge!("featurename" => [name])         if name
-      place.merge!("relationshiptag" => [relationship_tag]) if relationship_tag
+    def place(place)
       @places.push(place)
       self
     end
@@ -225,7 +218,7 @@ class Gnip::Activity
     end
 
     def build
-      Gnip::Activity.new(@actors, @action, @at, @url, @tos, @regardingURL, @sources, @tags, @payload, @destinationURLs, @keywords, @places)
+      Gnip::Activity.new(@actors, @action, @at, @url, @tos, @regardingURL, @sources, @tags, @payload, @destinationURLs, @keywords, @places, @activityID)
     end
 
   end
