@@ -2,6 +2,176 @@ require "rexml/document"
 require File.dirname(__FILE__) + '/../spec_helper'
 
 describe Gnip::Activity do
+  setup do
+    @sample_activity = {
+      :at                 => "2008-07-02T11:16:16+00:00",
+      :action             => "post",
+      :activityID         => "yk994589klsl",
+      :URL                => "http://www.gnipcentral.com",
+      :source             => [{"source" => "web"}],
+      :sources            => [{"source" => "web"},{"source" => "sms"}],
+                          
+      :keyword            => [{"keyword" => "ping"}],
+      :keywords           => [{"keyword" => "ping"},{"keyword" => "pong"}],
+      :place              => [Gnip::Place.new("45.256 -71.92", nil, nil, nil, nil, nil)],
+      :places             => [Gnip::Place.new("45.256 -71.92", nil, nil, nil, nil, nil), Gnip::Place.new("22.778 -54.998", "5280", "3", "City", "Boulder", nil), Gnip::Place.new("77.900 - 23.998")],
+      :actor              => [{"actor" => "Joe", "metaURL" => "http://www.gnipcentral.com/users/joe", "uid" => "1222"}],
+      :actors             => [{"actor" => "Joe", "metaURL" => "http://www.gnipcentral.com/users/joe", "uid" => "1222"},
+                                {"actor" => "Bob", "metaURL" => "http://www.gnipcentral.com/users/bob"},
+                                {"actor" => "Susan", "uid" => "1444"}],
+      :destinationURL     => [{"destinationURL" => "http://somewhere.com", "metaURL" => "http://somewhere.com/someplace"}],
+      :destinationURLs    => [{"destinationURL" => "http://somewhere.com"}, 
+                              {"metaURL" => "http://somewhere.com/someplace"},
+                              {"destinationURL" => "http://flickr.com"}],
+      :tag                => [{"tag" => "horses", "metaURL" => "http://gnipcentral.com/tags/horses"}],
+      :tags               => [{"tag" => "horses","metaURL" => "http://gnipcentral.com/tags/horses"},
+                              {"tag" => "cows"}],
+      :to                 => [{"to" => "Mary", "metaURL" => "http://gnipcentral.com/users/mary"}],
+      :tos                => [{"to" => "Mary", "metaURL" => "http://gnipcentral.com/users/mary"},
+                              {"to" => "James"}],
+      :regardingURL       => [{"regardingURL" => "http://blogger.com/users/posts/mary", "metaURL" => "http://blogger.com/users/mary"}],
+      :regardingURLs      => [{"regardingURL" => "http://blogger.com/users/posts/mary", "metaURL" => "http://blogger.com/users/mary"},
+                              {"regardingURL" => "http://blogger.com/users/posts/james"}],
+      :payload            => Gnip::Payload.new("raw"),
+      :payloads           => Gnip::Payload.new("raw", "title", "body", [{"mediaURL"=>"http://www.flickr.com/tour", "type" => "image", "mimeType" => "image/png"}, {"mediaURL" => "http://www.gnipcentral.com/login", "type" => "movie", "mimeType" => "video/quicktime"}])
+    }
+    @sa = @sample_activity
+  end
+  
+  it 'should correctly convert to xml' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity.xml')
+    a = Gnip::Activity.new(sa[:actor], sa[:action], sa[:at], sa[:URL], sa[:to], sa[:regardingURL], sa[:source], sa[:tag], nil, sa[:destinationURL], sa[:keyword], nil, sa[:activityID])
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should generate proper xml when optional fields are all nil' do
+    expected_xml = File.read('./spec/gnip/samples/activity_only_required.xml')
+    a = Gnip::Activity.new(nil, @sa[:action], @sa[:at], nil, nil, nil, nil, nil, nil, nil, nil, nil)
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly convert with place' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity_with_place.xml')
+    a = Gnip::Activity.new(sa[:actor], sa[:action], sa[:at], sa[:URL], sa[:to], sa[:regardingURL], sa[:source], sa[:tag], nil, sa[:destinationURL], sa[:keyword], sa[:place])
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly convert with payload' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity_with_payload.xml')
+    
+    # Need this here because raw_value seems to vary its output for the same source
+    insert_current_payload_raw(expected_xml)
+    
+    a = Gnip::Activity.new(sa[:actor], sa[:action], sa[:at], sa[:URL], sa[:to], sa[:regardingURL], sa[:source], sa[:tag], sa[:payload], sa[:destinationURL], sa[:keyword], sa[:place])
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly handle unbounded values' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity_without_bounds.xml')
+    a = Gnip::Activity.new(sa[:actors], sa[:action], sa[:at], sa[:URL], sa[:tos], sa[:regardingURLs], sa[:sources], sa[:tags], nil, sa[:destinationURLs], sa[:keywords], nil)
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly handle unbounded place' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity_with_place_wo_bounds.xml')
+    a = Gnip::Activity.new(sa[:actors], sa[:action], sa[:at], sa[:URL], sa[:tos], sa[:regardingURLs], sa[:sources], sa[:tags], nil, sa[:destinationURLs], sa[:keywords], sa[:places])
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly handle unbounded mediaURLs in Payload' do
+    sa = @sa
+    expected_xml = File.read('./spec/gnip/samples/activity_with_unbounded_media_urls.xml')
+    
+    insert_current_payload_raw(expected_xml)
+    
+    a = Gnip::Activity.new(sa[:actors], sa[:action], sa[:at], sa[:URL], sa[:tos], sa[:regardingURLs], sa[:sources], sa[:tags], sa[:payloads], sa[:destinationURLs], sa[:keywords], sa[:places])
+    a.to_xml.should == expected_xml
+  end
+  
+  it 'should correctly convert valid XML back into an Activity' do
+    xml_src = File.read('./spec/gnip/samples/activity.xml')
+    act = Gnip::Activity.from_xml(xml_src)
+    
+    act.at.should           == @sa[:at]
+    act.action.should       == @sa[:action]
+    act.activity_id.should  == @sa[:activityID]
+    act.url.should          == @sa[:URL]
+    act.sources.should      == @sa[:source]
+    act.keywords.should     == @sa[:keyword]
+    act.actors.should       == @sa[:actor]
+    act.destinationURLs.should == @sa[:destinationURL]
+    act.tags.should         == @sa[:tag]
+    act.tos.should          == @sa[:to]
+    act.regardingURLs.should   == @sa[:regardingURL]
+  end
+  
+  it 'should correctly convert XML with nulls back into a valid activity' do
+    xml_src = File.read('./spec/gnip/samples/activity_only_required.xml')
+    act = Gnip::Activity.from_xml(xml_src)
+    
+    act.at.should           == @sa[:at]
+    act.action.should       == @sa[:action]
+    act.activity_id.should  == nil
+    act.url.should          == nil
+    act.sources.should      == nil
+    act.keywords.should     == nil
+    act.actors.should       == nil
+    act.destinationURLs.should == nil
+    act.tags.should         == nil
+    act.tos.should          == nil
+    act.regardingURLs.should   == nil
+  end
+
+  it 'should correctly convert XML with place back into a valid activity' do
+    xml_src = File.read('./spec/gnip/samples/activity_with_place.xml')
+    act = Gnip::Activity.from_xml(xml_src)
+    
+    act.places.should == @sa[:place]
+  end
+
+  it 'should correctly convert XML with payload back into a valid activity' do    
+    xml_src = File.read('./spec/gnip/samples/activity_with_payload.xml')
+    insert_current_payload_raw(xml_src)
+    act = Gnip::Activity.from_xml(xml_src)
+    act.payload.should == @sa[:payload]
+  end
+  
+  it 'should correctly convert XML with unbounds back into a valid activity' do
+    xml_src = File.read('./spec/gnip/samples/activity_without_bounds.xml')
+    act = Gnip::Activity.from_xml(xml_src)
+    
+    act.sources.should      == @sa[:sources]
+    act.keywords.should     == @sa[:keywords]
+    act.actors.should       == @sa[:actors]
+    act.destinationURLs.should == @sa[:destinationURLs]
+    act.tags.should         == @sa[:tags]
+    act.tos.should          == @sa[:tos]
+    act.regardingURLs.should   == @sa[:regardingURLs]
+    
+  end
+  
+  it 'should correctly convert XML with multiple places back into a valid activity' do
+    xml_src = File.read('./spec/gnip/samples/activity_with_place_wo_bounds.xml')
+    act = Gnip::Activity.from_xml(xml_src)
+    act.places.should == @sa[:places]
+    
+  end
+  
+  it 'should correctly convert XML with multiple media urls back into a valid activity' do
+    xml_src = File.read('./spec/gnip/samples/activity_with_unbounded_media_urls.xml')
+    insert_current_payload_raw(xml_src, @sa[:payloads])
+    
+    act = Gnip::Activity.from_xml(xml_src)
+    act.payload.should == @sa[:payloads]
+  end
+
+end
+describe Gnip::Activity do
   it 'should known when another activity is equal to itself' do
     a = Gnip::Activity::Builder.new("added_friend", Time.parse('2007-05-23T00:53:11Z')).actor("joe").build()
     b = Gnip::Activity::Builder.new("added_friend", Time.parse('2007-05-23T00:53:11Z')).actor("joe").build()
@@ -168,4 +338,8 @@ XML
 
   end
 
+end
+
+def insert_current_payload_raw(expected_xml, src=@sa[:payload])
+  expected_xml.gsub!('<<raw-value>>',src.raw_value.chomp)
 end

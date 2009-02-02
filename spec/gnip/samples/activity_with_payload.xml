@@ -1,0 +1,20 @@
+  <activity>
+    <place>
+      <point>45.256 -71.92</point>
+    </place>
+    <regardingURL regardingURL="http://blogger.com/users/posts/mary" metaURL="http://blogger.com/users/mary" />
+    <payload>
+      <body></body>
+      <raw><<raw-value>>
+</raw>
+    </payload>
+    <actor metaURL="http://www.gnipcentral.com/users/joe" actor="Joe" uid="1222" />
+    <tag metaURL="http://gnipcentral.com/tags/horses" tag="horses" />
+    <url>http://www.gnipcentral.com</url>
+    <action>post</action>
+    <destinationURL metaURL="http://somewhere.com/someplace" destinationURL="http://somewhere.com" />
+    <to metaURL="http://gnipcentral.com/users/mary" to="Mary" />
+    <at>2008-07-02T11:16:16+00:00</at>
+    <keyword keyword="ping" />
+    <source source="web" />
+  </activity>

@@ -23,7 +23,7 @@ class Gnip::Payload
     end
 
     def ==(another)
-        another.instance_of?(self.class) && another.body == @body && another.raw == @raw_value
+        another.instance_of?(self.class) && another.body == @body && another.raw_value == @raw_value
     end
     alias eql? ==
 
@@ -34,9 +34,9 @@ class Gnip::Payload
     def self.from_hash(hash)
         return if hash.nil?  || hash.empty?
         title = hash['title'].first if hash['title']
-        body = hash['body'].first if hash['body']
-        raw = decode(hash['raw'].first) if hash['raw'] 
-        mediaURLs = hash['mediaURL'] if hash['mediaURL']
+        body = hash['body'].first if hash['body'] and !hash['body'].first.empty?
+        raw = decode(hash['raw'].first) if hash['raw']
+        mediaURLs = (hash['mediaURL'] ? hash['mediaURL'] : []) 
         Gnip::Payload.new(raw, body, title, mediaURLs)
     end
 

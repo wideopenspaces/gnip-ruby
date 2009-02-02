@@ -1,0 +1,21 @@
+  <activity>
+    <regardingURL regardingURL="http://blogger.com/users/posts/mary" metaURL="http://blogger.com/users/mary" />
+    <regardingURL regardingURL="http://blogger.com/users/posts/james" />
+    <actor metaURL="http://www.gnipcentral.com/users/joe" actor="Joe" uid="1222" />
+    <actor metaURL="http://www.gnipcentral.com/users/bob" actor="Bob" />
+    <actor actor="Susan" uid="1444" />
+    <tag metaURL="http://gnipcentral.com/tags/horses" tag="horses" />
+    <tag tag="cows" />
+    <url>http://www.gnipcentral.com</url>
+    <action>post</action>
+    <destinationURL destinationURL="http://somewhere.com" />
+    <destinationURL metaURL="http://somewhere.com/someplace" />
+    <destinationURL destinationURL="http://flickr.com" />
+    <to metaURL="http://gnipcentral.com/users/mary" to="Mary" />
+    <to to="James" />
+    <at>2008-07-02T11:16:16+00:00</at>
+    <keyword keyword="ping" />
+    <keyword keyword="pong" />
+    <source source="web" />
+    <source source="sms" />
+  </activity>

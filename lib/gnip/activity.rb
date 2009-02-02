@@ -1,8 +1,9 @@
 class Gnip::Activity
 
-  attr_reader :actors, :at, :url, :action, :tos, :regardingURLs, :destinationURLs, :sources, :tags, :keywords, :places, :payload
+  attr_reader :actors, :at, :url, :action, :tos, :regardingURLs, :destinationURLs, :sources, :tags, :keywords, :places, :activity_id, :payload
 
-  def initialize(actors, action, at = Time.now, url = nil, tos = [], regardingURLs = [], sources = [], tags = [], payload = nil, destinationURLs = [], keywords = [], places = [])
+  def initialize(actors, action, at = Time.now, url = nil, tos = [], regardingURLs = [], sources = [], tags = [], payload = nil, destinationURLs = [], keywords = [], places = [], activity_id=nil)
+    @activity_id = activity_id
     @actors = actors
     @action = action
     if (at.class == Time)
@@ -49,7 +50,8 @@ class Gnip::Activity
     result['payload'] = @payload.to_hash if @payload
     result['destinationURL'] = @destinationURLs if @destinationURLs
     result['keyword'] = @keywords if @keywords
-    result['place'] = @places if @places
+    result['place'] = @places.collect {|p| p.to_hash } if @places
+    result['activityID'] = [@activity_id] if @activity_id
 
     {'activity' => result }
   end
@@ -65,7 +67,12 @@ class Gnip::Activity
     payload = Gnip::Payload.from_hash(hash['payload'].first) if hash['payload']
     Gnip::Activity.new(hash['actor'], first(hash['action']), first(hash['at']),
              first(hash['url']), hash['to'], hash['regardingURL'], hash['source'], hash['tag'], payload,
-             hash['destinationURL'], hash['keyword'], hash['place'])
+             hash['destinationURL'], hash['keyword'], load_places_from_hash(hash['place']), first(hash['activityID']))
+  end
+  
+  def self.load_places_from_hash(_places=[])
+    return if _places.nil? || _places.empty?
+    plc = _places.collect { |p| Gnip::Place.from_hash(p) }
   end
 
   def self.from_xml(document)
